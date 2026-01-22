@@ -16,7 +16,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Deploy to server via password
+    - name: Deploy to server
       uses: appleboy/ssh-action@v1.0.0
       with:
         host: ${{ secrets.SERVER_HOST }}
@@ -24,36 +24,50 @@ jobs:
         password: ${{ secrets.SERVER_PASSWORD }}
         port: ${{ secrets.SERVER_PORT || 22 }}
         script: |
-          # Переходим в директорию студента
-          cd /opt/student-bots/${{ env.STUDENT_NAME }} || {
-            mkdir -p /opt/student-bots/${{ env.STUDENT_NAME }}
-            cd /opt/student-bots/${{ env.STUDENT_NAME }}
-          }
+          set -e  # Останавливаем при ошибке
           
-          # Клонируем или обновляем репозиторий
+          # Проверяем наличие docker
+          if ! command -v docker &> /dev/null; then
+            echo "ERROR: Docker не установлен!"
+            exit 1
+          fi
+          
+          # Создаем директорию для студента
+          mkdir -p /opt/student-bots/${{ env.STUDENT_NAME }}
+          cd /opt/student-bots/${{ env.STUDENT_NAME }}
+          
+          # Клонируем или обновляем репозиторий (публичный)
           if [ -d ".git" ]; then
+            echo "Обновляем существующий репозиторий..."
             git fetch origin
             git reset --hard origin/main
             git clean -fd
           else
-            git clone https://github.com/${{ github.repository }} .
+            echo "Клонируем новый репозиторий..."
+            git clone https://github.com/${{ github.repository }}.git .
           fi
           
           # Создаем .env файл
-          cat > .env << EOF
+          cat > .env << 'EOF'
           BOT_TOKEN=${{ secrets.BOT_TOKEN }}
           STUDENT_NAME=${{ env.STUDENT_NAME }}
           EOF
           
           # Останавливаем старый контейнер
-          docker compose down 2>/dev/null || true
+          docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
           
           # Собираем и запускаем новый
-          docker compose build --no-cache
-          docker compose up -d
+          echo "Собираем Docker образ..."
+          docker compose build --no-cache || docker-compose build --no-cache
+          
+          echo "Запускаем контейнер..."
+          docker compose up -d || docker-compose up -d
           
           # Показываем статус
-          docker compose ps
+          echo "Статус контейнера:"
+          docker compose ps || docker-compose ps
           
           # Очищаем неиспользуемые образы
           docker image prune -f
+          
+          echo "Деплой завершен успешно!"
