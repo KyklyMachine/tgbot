@@ -7,8 +7,6 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    environment:
-      - TELEGRAM_BOT_TOKEN=${BOT_TOKEN}
     networks:
       - bot_network
 
