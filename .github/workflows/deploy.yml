@@ -49,7 +49,7 @@ jobs:
           
           # Создаем .env файл
           cat > .env << 'EOF'
-          BOT_TOKEN=${{ secrets.BOT_TOKEN }}
+          TELEGRAM_BOT_TOKEN=${{ secrets.BOT_TOKEN }}
           STUDENT_NAME=${{ env.STUDENT_NAME }}
           EOF
           
